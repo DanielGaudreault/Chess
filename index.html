@@ -20,6 +20,26 @@
             margin-bottom: 20px;
         }
         
+        .game-mode-selector {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .game-mode-selector button {
+            padding: 8px 16px;
+            font-size: 14px;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .game-mode-selector button.active {
+            background-color: #007bff;
+        }
+        
         .chess-board {
             width: 480px;
             height: 480px;
@@ -103,10 +123,21 @@
         .file-coords {
             bottom: 5px;
         }
+        
+        .ai-thinking {
+            margin-top: 10px;
+            font-style: italic;
+            color: #666;
+        }
     </style>
 </head>
 <body>
     <h1>Chess Game</h1>
+    
+    <div class="game-mode-selector">
+        <button id="pvpButton" class="active">1 vs 1</button>
+        <button id="pvaiButton">1 vs AI</button>
+    </div>
     
     <div class="chess-board" id="chessBoard"></div>
     
@@ -115,6 +146,8 @@
         <div class="captured-pieces" id="whiteCaptured"></div>
     </div>
     <div class="captured-pieces" id="blackCaptured"></div>
+    
+    <div class="ai-thinking" id="aiThinking" style="display: none;">AI is thinking...</div>
     
     <button id="resetButton">New Game</button>
 
@@ -125,6 +158,9 @@
             const whiteCaptured = document.getElementById('whiteCaptured');
             const blackCaptured = document.getElementById('blackCaptured');
             const resetButton = document.getElementById('resetButton');
+            const pvpButton = document.getElementById('pvpButton');
+            const pvaiButton = document.getElementById('pvaiButton');
+            const aiThinking = document.getElementById('aiThinking');
             
             // Chess pieces Unicode characters
             const pieces = {
@@ -150,6 +186,7 @@
             let whiteCapturedPieces = [];
             let blackCapturedPieces = [];
             let moveHistory = [];
+            let gameMode = 'pvp'; // 'pvp' or 'pvai'
             
             // Initialize the board
             function initBoard() {
@@ -194,6 +231,9 @@
             
             // Handle square click
             function handleSquareClick(row, col) {
+                // If it's AI's turn in 1 vs AI mode, ignore clicks
+                if (gameMode === 'pvai' && turn === 'black') return;
+                
                 const piece = board[row][col];
                 
                 // If no square is selected
@@ -240,11 +280,63 @@
                         // Switch turns
                         turn = turn === 'white' ? 'black' : 'white';
                         updateGameInfo();
+                        
+                        // If in 1 vs AI mode and it's AI's turn, make AI move
+                        if (gameMode === 'pvai' && turn === 'black') {
+                            setTimeout(makeAIMove, 500); // Delay for better UX
+                        }
                     }
                     
                     clearHighlights();
                     selectedSquare = null;
                 }
+            }
+            
+            // Make a move for the AI
+            function makeAIMove() {
+                aiThinking.style.display = 'block';
+                
+                // Simple AI: choose a random valid move
+                setTimeout(() => {
+                    const possibleMoves = [];
+                    
+                    // Find all black pieces
+                    for (let fromRow = 0; fromRow < 8; fromRow++) {
+                        for (let fromCol = 0; fromCol < 8; fromCol++) {
+                            const piece = board[fromRow][fromCol];
+                            if (piece && piece === piece.toLowerCase()) { // Black piece
+                                // Find all possible moves for this piece
+                                for (let toRow = 0; toRow < 8; toRow++) {
+                                    for (let toCol = 0; toCol < 8; toCol++) {
+                                        if (isValidMove(fromRow, fromCol, toRow, toCol)) {
+                                            // Prioritize captures
+                                            const targetPiece = board[toRow][toCol];
+                                            const priority = targetPiece ? 10 : 1;
+                                            possibleMoves.push({ fromRow, fromCol, toRow, toCol, priority });
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (possibleMoves.length > 0) {
+                        // Sort moves by priority (captures first)
+                        possibleMoves.sort((a, b) => b.priority - a.priority);
+                        
+                        // Choose a random move from the top priority moves
+                        const topPriority = possibleMoves[0].priority;
+                        const topMoves = possibleMoves.filter(move => move.priority === topPriority);
+                        const randomMove = topMoves[Math.floor(Math.random() * topMoves.length)];
+                        
+                        // Make the move
+                        makeMove(randomMove.fromRow, randomMove.fromCol, randomMove.toRow, randomMove.toCol);
+                        turn = 'white';
+                        updateGameInfo();
+                    }
+                    
+                    aiThinking.style.display = 'none';
+                }, 500);
             }
             
             // Highlight a square
@@ -432,13 +524,24 @@
                 whiteCapturedPieces = [];
                 blackCapturedPieces = [];
                 moveHistory = [];
+                aiThinking.style.display = 'none';
                 
                 initBoard();
                 updateGameInfo();
             }
             
+            // Set game mode
+            function setGameMode(mode) {
+                gameMode = mode;
+                pvpButton.classList.toggle('active', mode === 'pvp');
+                pvaiButton.classList.toggle('active', mode === 'pvai');
+                resetGame();
+            }
+            
             // Event listeners
             resetButton.addEventListener('click', resetGame);
+            pvpButton.addEventListener('click', () => setGameMode('pvp'));
+            pvaiButton.addEventListener('click', () => setGameMode('pvai'));
             
             // Initialize the game
             initBoard();
@@ -446,4 +549,3 @@
     </script>
 </body>
 </html>
-
